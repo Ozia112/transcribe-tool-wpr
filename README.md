@@ -69,25 +69,54 @@ Se instala como herramienta de línea de comandos con **pipx** (recomendado) en
 `transcribe --start` instala el stack pesado (PyTorch+CUDA, WhisperX, pyannote)
 en el mismo entorno aislado.
 
-**Requisito previo:** [pipx](https://pipx.pypa.io/) **≥ 1.5** instalado
-(`python -m pip install --user pipx` y `python -m pipx ensurepath`). **No** necesitas
-tener Python 3.11 a mano: el comando de abajo lo descarga solo si falta.
+**Requisito previo:** [pipx](https://pipx.pypa.io/) instalado
+(`python -m pip install --user pipx` y `python -m pipx ensurepath`). El stack necesita
+**Python 3.11** (3.12+ no es compatible); abajo hay tres formas de resolverlo.
 
-1. **Instala el CLI** (ligero):
+1. **Instala el CLI** (ligero). Elige **una** de las tres opciones:
 
-   ```bat
+   **A) Segura (recomendada)** — descarga Python 3.11 si te falta. Requiere pipx ≥ 1.5.
+   Idéntica en Windows y Linux:
+
+   ```bash
    pipx install --python 3.11 --fetch-missing-python transcribe-tool-wpr
    ```
 
-   - `--python 3.11` fuerza el intérprete correcto (el stack no soporta 3.12+).
-   - `--fetch-missing-python` hace que pipx **descargue un Python 3.11 standalone**
-     si no encuentra uno; si ya tienes 3.11, lo reutiliza.
-   - pipx deja el comando `transcribe` en el PATH automáticamente
-     (`pipx ensurepath` una vez si avisa que falta; luego reabre la terminal).
+   `--fetch-missing-python` hace que pipx baje un CPython 3.11 standalone si no
+   encuentra uno; si ya tienes 3.11, lo reutiliza.
 
-   > Si tu `transcribe` no aparece tras instalar, corre `pipx ensurepath` y reabre la
-   > terminal. En Windows **no** uses `--python python3.11` (ese nombre no existe ahí);
-   > usa la forma de arriba (`--python 3.11`).
+   **B) Ligera** — usa un Python 3.11 que **ya tengas instalado** (falla si no está):
+
+   ```bat
+   REM Windows (3.11 registrado en el py launcher, p. ej. instalado desde python.org)
+   pipx install --python 3.11 transcribe-tool-wpr
+   ```
+
+   ```bash
+   # Linux (python3.11 disponible, p. ej. apt install python3.11)
+   pipx install --python python3.11 transcribe-tool-wpr
+   ```
+
+   **C) Forzada** — ruta **explícita** al intérprete 3.11 (útil con pyenv, que el
+   `py` launcher de Windows no detecta):
+
+   ```bat
+   REM Windows + pyenv-win (reemplaza <usuario> por el tuyo)
+   pipx install --python "C:\Users\<usuario>\.pyenv\pyenv-win\versions\3.11.9\python.exe" transcribe-tool-wpr
+   ```
+
+   ```bash
+   # Linux (intérprete del sistema)
+   pipx install --python /usr/bin/python3.11 transcribe-tool-wpr
+   # Linux + pyenv
+   pipx install --python ~/.pyenv/versions/3.11.9/bin/python transcribe-tool-wpr
+   ```
+
+   > **En Windows NO uses `--python python3.11`** (ese nombre no existe ahí y da
+   > `WinError 193`): usa `--python 3.11` (opciones A/B) o la ruta completa (C).
+   > Tras instalar, si `transcribe` no aparece, corre `pipx ensurepath` y reabre la
+   > terminal. Para no repetir la ruta de la opción C en cada (re)instalación, puedes
+   > fijar la variable `PIPX_DEFAULT_PYTHON` a ese `python.exe`.
 
 2. **Prepara el entorno** (stack pesado + ffmpeg + token):
 
