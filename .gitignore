@@ -1,0 +1,35 @@
+# ---- Entornos virtuales (se recrean con install.bat / --setup-diarizer) ----
+venv/
+venv-dia-community1/
+venv-dia-nemo/
+
+# ---- Binarios grandes (los descarga install.bat desde gyan.dev) ----
+ffmpeg.exe
+ffprobe.exe
+
+# ---- Cache de Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ---- Artefactos de ejecucion ----
+benchmarks.jsonl            # solo se genera con --bench-report true; es local
+last_status.json
+.transcribe_status.json
+_diar_in.wav                # wav temporal de los diarizadores en subproceso
+_diar_out.json
+_diar_out.stats.json
+
+# ---- Material de prueba (audios pesados + sus salidas) ----
+pruebas/
+
+# ---- Salidas de transcripcion sueltas en la raiz ----
+*.srt
+*.vtt
+*.tsv
+
+# ---- Sistema operativo / editores ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

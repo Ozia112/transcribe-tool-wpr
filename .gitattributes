@@ -1,0 +1,16 @@
+# Normaliza finales de linea por tipo de archivo.
+* text=auto
+
+# Scripts de Python: LF (algunos corren bajo WSL2/Linux, p.ej. _diar_nemo.py).
+*.py   text eol=lf
+
+# Scripts batch: CRLF (los ejecuta cmd.exe en Windows).
+*.bat  text eol=crlf
+
+# Documentacion y config de texto: LF.
+*.md   text eol=lf
+*.txt  text eol=lf
+
+# Binarios que pudieran colarse: nunca tratar como texto.
+*.exe  binary
+*.wav  binary
