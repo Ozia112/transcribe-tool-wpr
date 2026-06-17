@@ -69,18 +69,25 @@ Se instala como herramienta de línea de comandos con **pipx** (recomendado) en
 `transcribe --start` instala el stack pesado (PyTorch+CUDA, WhisperX, pyannote)
 en el mismo entorno aislado.
 
-**Requisito previo:** Python 3.11 (3.12+ no es compatible con el stack) y
-[pipx](https://pipx.pypa.io/) instalado (`python -m pip install --user pipx` y
-`python -m pipx ensurepath`).
+**Requisito previo:** [pipx](https://pipx.pypa.io/) **≥ 1.5** instalado
+(`python -m pip install --user pipx` y `python -m pipx ensurepath`). **No** necesitas
+tener Python 3.11 a mano: el comando de abajo lo descarga solo si falta.
 
 1. **Instala el CLI** (ligero):
 
    ```bat
-   pipx install --python python3.11 transcribe-tool-wpr
+   pipx install --python 3.11 --fetch-missing-python transcribe-tool-wpr
    ```
 
-   `--python python3.11` asegura que el entorno aislado use 3.11. pipx deja el
-   comando `transcribe` en el PATH automáticamente.
+   - `--python 3.11` fuerza el intérprete correcto (el stack no soporta 3.12+).
+   - `--fetch-missing-python` hace que pipx **descargue un Python 3.11 standalone**
+     si no encuentra uno; si ya tienes 3.11, lo reutiliza.
+   - pipx deja el comando `transcribe` en el PATH automáticamente
+     (`pipx ensurepath` una vez si avisa que falta; luego reabre la terminal).
+
+   > Si tu `transcribe` no aparece tras instalar, corre `pipx ensurepath` y reabre la
+   > terminal. En Windows **no** uses `--python python3.11` (ese nombre no existe ahí);
+   > usa la forma de arriba (`--python 3.11`).
 
 2. **Prepara el entorno** (stack pesado + ffmpeg + token):
 
@@ -104,7 +111,7 @@ en el mismo entorno aislado.
 aparte; ver [Información técnica](#información-técnica)).
 
 > **Alternativa sin PyPI (bleeding-edge):**
-> `pipx install --python python3.11 "git+https://github.com/Ozia112/transcribe-tool-wpr.git"`,
+> `pipx install --python 3.11 --fetch-missing-python "git+https://github.com/Ozia112/transcribe-tool-wpr.git"`,
 > luego `transcribe --start` igual. Para actualizar, reinstala apuntando al nuevo tag.
 
 ### Token de HuggingFace
