@@ -24,11 +24,11 @@ import json
 import os
 import platform
 import subprocess
-import sys
 import time
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
+from transcribe_wpr import paths
+
 MIN_VRAM_NEMO_GB = 3.0
 MAX_AUDIO_SEC_NEMO = 1800  # 30 min: limite medido del extractor de features de NeMo
 
@@ -60,9 +60,9 @@ def diar_batch_sequence(start: int) -> list[int]:
         seq = [start]
     return list(dict.fromkeys(seq))
 
-# venvs de backends que corren en proceso aparte
-VENV_COMMUNITY1 = SCRIPT_DIR / "venv-dia-community1"
-VENV_NEMO = SCRIPT_DIR / "venv-dia-nemo"
+# venvs de backends que corren en proceso aparte (en la carpeta de datos)
+VENV_COMMUNITY1 = paths.VENV_COMMUNITY1
+VENV_NEMO = paths.VENV_NEMO
 
 
 def gpu_vram_gb() -> float:
@@ -146,7 +146,7 @@ class Pyannote31(DiarizerBackend):
     default_batch = 64  # medido: cabe en 4 GB
 
     def availability(self):
-        return True, "siempre disponible (venv principal)"
+        return True, "siempre disponible (entorno del paquete)"
 
     def diarize(self, audio, min_speakers, max_speakers, hf_token, device,
                 diar_batch=None, log=print):
@@ -154,7 +154,7 @@ class Pyannote31(DiarizerBackend):
             diar_batch = self.default_batch
         # audio: array numpy 16 kHz mono (ya decodificado por whisperx)
         from whisperx.diarize import DiarizationPipeline  # import diferido
-        import hf_patch
+        from transcribe_wpr import hf_patch
         hf_patch.apply()  # pyannote 3.4 usa use_auth_token (removido en hf_hub 1.x)
 
         import torch
@@ -244,8 +244,8 @@ class PyannoteCommunity1(DiarizerBackend):
         py = VENV_COMMUNITY1 / "Scripts" / "python.exe"
         if not py.exists():
             py = VENV_COMMUNITY1 / "bin" / "python"
-        tmp_wav = SCRIPT_DIR / "_diar_in.wav"
-        out_json = SCRIPT_DIR / "_diar_out.json"
+        tmp_wav = paths.DIAR_TMP_WAV
+        out_json = paths.DIAR_TMP_JSON
         for f in (tmp_wav, out_json):
             if f.exists():
                 f.unlink()
@@ -271,7 +271,7 @@ class PyannoteCommunity1(DiarizerBackend):
                 tag = dev + (f" batch {batch}" if batch else "")
                 log(f">> Diarizacion (community-1) en {tag}...")
                 cmd = [
-                    str(py), str(SCRIPT_DIR / "_diar_pyannote4.py"),
+                    str(py), str(paths.DIAR_PYANNOTE4_SCRIPT),
                     str(tmp_wav), str(out_json), hf_token or "", dev, batch,
                     str(min_speakers or ""), str(max_speakers or ""),
                 ]
@@ -353,8 +353,8 @@ class Nemo(DiarizerBackend):
                 f"pyannote-community-1 para este archivo."
             )
         import soundfile as sf
-        tmp_wav = SCRIPT_DIR / "_diar_in.wav"
-        out_json = SCRIPT_DIR / "_diar_out.json"
+        tmp_wav = paths.DIAR_TMP_WAV
+        out_json = paths.DIAR_TMP_JSON
         for f in (tmp_wav, out_json):
             if f.exists():
                 f.unlink()
@@ -362,8 +362,8 @@ class Nemo(DiarizerBackend):
 
         on_windows = platform.system() == "Windows"
         py = self._venv_python()
-        script = _to_wsl_path(SCRIPT_DIR / "_diar_nemo.py") if on_windows \
-            else str(SCRIPT_DIR / "_diar_nemo.py")
+        script = _to_wsl_path(paths.DIAR_NEMO_SCRIPT) if on_windows \
+            else str(paths.DIAR_NEMO_SCRIPT)
         wav_arg = _to_wsl_path(tmp_wav) if on_windows else str(tmp_wav)
         json_arg = _to_wsl_path(out_json) if on_windows else str(out_json)
         args = [py, script, wav_arg, json_arg,

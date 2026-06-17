@@ -104,30 +104,37 @@ def convert(json_path: Path, output_path: Path) -> None:
     print(f"  Markdown guardado: {output_path}")
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        print("Uso: python convert_to_md.py <carpeta_o_archivo.json>")
-        sys.exit(1)
-
-    target = Path(sys.argv[1])
-
+def convert_dir(target) -> None:
+    """Resuelve <carpeta_o_archivo.json> y genera el .md correspondiente.
+    Reutilizable in-process (lo llaman run.py/rediarize.py) y desde main()."""
+    target = Path(target)
     if target.is_dir():
         # Excluye archivos de estado/ocultos (p.ej. .transcribe_status.json)
         json_files = [p for p in target.glob("*.json") if not p.name.startswith(".")]
         if not json_files:
-            print(f"No se encontraron archivos .json en {target}")
-            sys.exit(1)
+            raise FileNotFoundError(f"No se encontraron archivos .json en {target}")
         # El mas reciente (recien generado por WhisperX)
         json_path = max(json_files, key=lambda p: p.stat().st_mtime)
     elif target.suffix == ".json" and target.exists():
         json_path = target
     else:
-        print(f"Ruta invalida o no es un .json: {target}")
-        sys.exit(1)
+        raise ValueError(f"Ruta invalida o no es un .json: {target}")
 
     output_path = json_path.with_suffix(".md")
     print(f"Procesando: {json_path.name}")
     convert(json_path, output_path)
+
+
+def main(argv=None) -> None:
+    args = sys.argv[1:] if argv is None else argv
+    if not args:
+        print("Uso: transcribe --to-md <carpeta_o_archivo.json>")
+        sys.exit(1)
+    try:
+        convert_dir(args[0])
+    except (FileNotFoundError, ValueError) as e:
+        print(e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

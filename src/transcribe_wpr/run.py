@@ -25,9 +25,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-GLOBAL_STATUS = SCRIPT_DIR / "last_status.json"
-BENCH_FILE = SCRIPT_DIR / "benchmarks.jsonl"
+from transcribe_wpr import paths
+
+GLOBAL_STATUS = paths.GLOBAL_STATUS
+BENCH_FILE = paths.BENCH_FILE
 
 # Cada etapa mapea su 0-100% local a un rango del progreso global.
 STAGE_RANGES = {
@@ -102,7 +103,7 @@ def append_bench_report(diarizer: str, speakers_label: str, diar_batch,
             gpu_name = props.name
             vram_total_gb = round(props.total_memory / 1e9, 2)
 
-        import diarizers as _diarizers
+        from transcribe_wpr import diarizers as _diarizers
         stats = dict(_diarizers.LAST_DIAR_STATS)
 
         record = {
@@ -295,11 +296,11 @@ class ProgressTee:
         self.real.flush()
 
 
-def main() -> int:
+def main(argv=None) -> int:
     import argparse
-    import diarizers
+    from transcribe_wpr import diarizers
 
-    p = argparse.ArgumentParser(prog="run.py", add_help=True)
+    p = argparse.ArgumentParser(prog="transcribe", add_help=True)
     p.add_argument("audio")
     p.add_argument("speakers", nargs="?", default="")
     p.add_argument("lang", nargs="?", default="es")
@@ -312,7 +313,7 @@ def main() -> int:
     p.add_argument("--bench-report", dest="bench_report", default="false",
                    help="true/false: agrega una linea a benchmarks.jsonl con "
                         "GPU/VRAM/tiempo de la diarizacion (def false, no escribe nada)")
-    a = p.parse_args()
+    a = p.parse_args(argv)
 
     audio_path = a.audio
     output_dir = a.output
@@ -441,7 +442,7 @@ def main() -> int:
 
         # ---------- 3. Diarizacion (backend seleccionable y desacoplado) ----------
         set_stage("diarizacion")
-        import diarizers
+        from transcribe_wpr import diarizers
         backend = diarizers.get_backend(diarizer)
         ok, reason = backend.availability()
         if not ok:
@@ -483,12 +484,13 @@ def main() -> int:
             except (OSError, json.JSONDecodeError):
                 pass
 
-        # Markdown con formato "Orador n"
-        import subprocess
-        subprocess.run(
-            [sys.executable, str(SCRIPT_DIR / "convert_to_md.py"), output_dir],
-            check=False,
-        )
+        # Markdown con formato "Orador n" (in-process: convert_to_md es stdlib pura)
+        from transcribe_wpr import convert_to_md
+        try:
+            convert_to_md.convert_dir(output_dir)
+        except Exception as e:  # noqa: BLE001 - no romper si el .md falla
+            print(f"AVISO: no se pudo generar el .md: {e}",
+                  file=sys.__stdout__, flush=True)
 
         state["stage"] = "completado"
         state["stage_pct"] = 100.0

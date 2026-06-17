@@ -12,17 +12,14 @@ Uso (lo llama transcribe --rediarize):
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
 
+def main(argv=None) -> int:
+    from transcribe_wpr import diarizers
+    from transcribe_wpr.run import parse_speakers  # parser de "4" / "4-8"
 
-def main() -> int:
-    import diarizers
-    from run import parse_speakers  # reutiliza el parser de "4" / "4-8"
-
-    p = argparse.ArgumentParser(prog="rediarize.py")
+    p = argparse.ArgumentParser(prog="transcribe --rediarize")
     p.add_argument("json")
     p.add_argument("audio")
     p.add_argument("speakers", nargs="?", default="")
@@ -30,7 +27,7 @@ def main() -> int:
     p.add_argument("--output", required=True)
     p.add_argument("--diar-batch", dest="diar_batch", type=int, default=None,
                    help="batch de diarizacion (def 32, baja solo)")
-    a = p.parse_args()
+    a = p.parse_args(argv)
 
     json_path = Path(a.json)
     if not json_path.exists():
@@ -95,12 +92,15 @@ def main() -> int:
         except (OSError, json.JSONDecodeError):
             pass
 
-    import subprocess
-    subprocess.run([sys.executable, str(SCRIPT_DIR / "convert_to_md.py"), out_dir],
-                   check=False)
+    from transcribe_wpr import convert_to_md
+    try:
+        convert_to_md.convert_dir(out_dir)
+    except Exception as e:  # noqa: BLE001 - no romper si el .md falla
+        print(f"AVISO: no se pudo generar el .md: {e}", flush=True)
     print(f"\nLISTO. Re-diarizado en: {out_dir}", flush=True)
     return 0
 
 
 if __name__ == "__main__":
+    import sys
     sys.exit(main())

@@ -17,8 +17,9 @@ import sys
 import time
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-GLOBAL_STATUS = SCRIPT_DIR / "last_status.json"
+from transcribe_wpr import paths
+
+GLOBAL_STATUS = paths.GLOBAL_STATUS
 
 # Etapas que emiten sub-progreso en vivo ("Progress: X%"). En el resto
 # (carga, VAD, diarizacion, escritura) no hay % por etapa: pyannote y la
@@ -70,8 +71,8 @@ def render(data: dict) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
-    args = sys.argv[1:]
+def main(argv=None) -> int:
+    args = sys.argv[1:] if argv is None else list(argv)
     watch = False
     interval = 2.0
     raw_json = False

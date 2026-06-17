@@ -64,38 +64,48 @@ Todo se opera con **un único comando, `transcribe`** (en el PATH), con subcoman
 
 ## Instalación
 
-**Requisito previo:** Python 3.11 (3.12+ no es compatible con el stack). Si no lo
-tienes, instálalo con [pyenv-win](https://github.com/pyenv-win/pyenv-win)
-(`pyenv install 3.11.9`) o desde [python.org](https://www.python.org/downloads/).
+Se instala como herramienta de línea de comandos con **pipx** (recomendado) en
+**dos fases**: `pipx install` trae el CLI ligero (rápido, sin torch), y
+`transcribe --start` instala el stack pesado (PyTorch+CUDA, WhisperX, pyannote)
+en el mismo entorno aislado.
 
-1. Clona el repositorio y entra en la carpeta:
+**Requisito previo:** Python 3.11 (3.12+ no es compatible con el stack) y
+[pipx](https://pipx.pypa.io/) instalado (`python -m pip install --user pipx` y
+`python -m pipx ensurepath`).
 
-   ```bat
-   git clone <url-del-repo> whisperx
-   cd whisperx
-   ```
-
-2. Ejecuta el **instalador maestro**:
+1. **Instala el CLI** (ligero):
 
    ```bat
-   install
+   pipx install --python python3.11 transcribe-tool-wpr
    ```
 
-   El instalador (`install.bat`):
-   - verifica Python 3.11 y crea el venv principal (`venv\`);
-   - instala todas las dependencias del camino por defecto desde `requirements.txt`
-     (PyTorch + CUDA 12.1, WhisperX, pyannote 3.1, faster-whisper, cuDNN 8 y cuBLAS
-     como paquetes pip — todo en el venv, nada en el sistema);
-   - descarga `ffmpeg.exe` y `ffprobe.exe` (build esencial de Windows) si no están;
-   - **opcionalmente** te pide el token de HuggingFace (puedes omitirlo y ponerlo
-     después con `transcribe --setup-token`).
+   `--python python3.11` asegura que el entorno aislado use 3.11. pipx deja el
+   comando `transcribe` en el PATH automáticamente.
 
-   > **Lo que NO instala (y no hace falta):** los **modelos** se descargan solos en la
-   > primera transcripción; los **diarizadores extra** se instalan on-demand con
+2. **Prepara el entorno** (stack pesado + ffmpeg + token):
+
+   ```bat
+   transcribe --start
+   ```
+
+   `--start`:
+   - instala el stack pesado en el venv de pipx (PyTorch + CUDA 12.1, WhisperX,
+     pyannote 3.1, faster-whisper, cuDNN 8 y cuBLAS como paquetes pip);
+   - descarga `ffmpeg`/`ffprobe` a la carpeta de datos del usuario;
+   - **opcionalmente** te pide el token de HuggingFace (omitible; lo pones luego
+     con `transcribe --setup-token`).
+
+   > **Lo que NO instala (y no hace falta):** los **modelos** se descargan solos en
+   > la primera transcripción; los **diarizadores extra** se instalan on-demand con
    > `transcribe --setup-diarizer pyannote-community-1` o `... nemo`.
 
-3. *(Recomendado)* Agrega la carpeta de la herramienta al `PATH` para invocar
-   `transcribe` desde cualquier lugar. Si no, llama a `transcribe.bat` con su ruta.
+**Actualizar:** `pipx upgrade transcribe-tool-wpr`. **Desinstalar:**
+`pipx uninstall transcribe-tool-wpr` (la carpeta de datos con venvs/ffmpeg se borra
+aparte; ver [Información técnica](#información-técnica)).
+
+> **Alternativa sin PyPI (bleeding-edge):**
+> `pipx install --python python3.11 "git+https://github.com/<OWNER>/transcribe-tool-wpr.git"`,
+> luego `transcribe --start` igual. Para actualizar, reinstala apuntando al nuevo tag.
 
 ### Token de HuggingFace
 
@@ -108,19 +118,21 @@ Necesario para los diarizadores pyannote. Solo se hace una vez:
      [pyannote/speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1)
 2. Genera un token de tipo **read** en
    [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
-3. Guárdalo (si lo omitiste durante `install`):
+3. Guárdalo (si lo omitiste durante `transcribe --start`):
 
    ```bat
    transcribe --setup-token
    ```
 
-4. Cierra y reabre la terminal (para que tome la variable `HF_TOKEN`).
+   El token se guarda en la carpeta de datos y la herramienta lo lee sola; no hace
+   falta reabrir la terminal.
 
 ---
 
 ## Comandos
 
 ```text
+transcribe --start                                        # preparar entorno (1.ª vez)
 transcribe <ruta_audio> [oradores] [idioma] [diarizador]  # transcribir
 transcribe --status [--watch | --watch N | --json]        # ver progreso
 transcribe --setup-token                                  # guardar token HF
@@ -128,6 +140,7 @@ transcribe --to-md [carpeta]                              # regenerar el .md
 transcribe --list-diarizers                               # diarizadores + estado
 transcribe --setup-diarizer <nombre>                      # instalar uno extra
 transcribe --rediarize <json> <audio> [oradores] [diariz] # re-diarizar sin re-transcribir
+transcribe --version                                      # versión instalada
 transcribe --help                                         # ayuda
 ```
 
@@ -289,7 +302,7 @@ transcribe --list-diarizers
 
 ### `pyannote-3.1` (por defecto)
 
-- **Sistema(s) operativo(s):** Windows 10/11 x64 (probado, venv principal). pyannote.audio
+- **Sistema(s) operativo(s):** Windows 10/11 x64 (probado, entorno del paquete). pyannote.audio
   es multiplataforma; en Linux nativo debería funcionar igual pero no se ha probado aquí.
 - **Recursos mínimos:** GPU NVIDIA CUDA con ~2 GB libres (si no hay suficiente, cae solo a CPU).
 - **Recursos recomendados:** GPU NVIDIA con 4 GB VRAM.
@@ -446,21 +459,22 @@ audio ni transcripciones.
 | pyannote.audio | 3.4.0 (diarización) |
 | speechbrain | 1.0.3 (la 1.1.0 rompe por un import de `k2` en Windows) |
 | cuDNN / cuBLAS | cuDNN 8 (`nvidia-cudnn-cu12==8.9.7.29`) — requerido por CTranslate2 |
-| ffmpeg | `ffmpeg.exe`/`ffprobe.exe`, los descarga `install.bat` (no van en el repo) |
+| ffmpeg | `ffmpeg`/`ffprobe`, los descarga `transcribe --start` (no van en el repo) |
 
-> Las versiones exactas del venv principal están fijadas en `requirements.txt` (lo
-> usa `install.bat`). El diarizador `nemo` usa su propio venv en WSL2 con torch
-> CUDA + `nemo_toolkit[asr]` (ver [Diarizadores](#diarizadores-backends)).
+> Las versiones exactas del stack pesado están fijadas en
+> `src/transcribe_wpr/data/heavy_requirements.txt` (lo instala `transcribe --start`).
+> El diarizador `nemo` usa su propio venv en WSL2 con torch CUDA +
+> `nemo_toolkit[asr]` (ver [Diarizadores](#diarizadores-backends)).
 
-### Archivos de la herramienta
+### Estructura del paquete
 
-El **único comando en el PATH es `transcribe`**; el resto son módulos internos.
+El comando `transcribe` es el **entry point** del paquete (lo pone pipx en el PATH);
+el resto son módulos internos en `src/transcribe_wpr/`.
 
 | Archivo | Qué es |
 | --- | --- |
-| `install.bat` | Instalador maestro (venv + requirements + ffmpeg + token opcional). |
-| `requirements.txt` | Versiones fijadas del venv principal (las usa `install.bat`). |
-| `transcribe.bat` | Único comando. Dispatcher de todos los subcomandos. |
+| `cli.py` | Dispatcher del comando `transcribe` (incluye `--start`, el setup pesado). |
+| `paths.py` | Separa CÓDIGO (paquete) de DATOS de runtime (carpeta de datos del usuario). |
 | `run.py` | Pipeline: VRAM por etapas, batch/beam adaptativos, progreso, status, fallback CPU. |
 | `status.py` | Lector de progreso (`--status`; solo stdlib, CPU pura). |
 | `convert_to_md.py` | Convierte el JSON al Markdown `Orador n` (`--to-md`). |
@@ -469,9 +483,15 @@ El **único comando en el PATH es `transcribe`**; el resto son módulos internos
 | `_diar_pyannote4.py` | Subproceso de `pyannote-community-1` (corre en `venv-dia-community1`). |
 | `_diar_nemo.py` | Subproceso de `nemo` (corre en `venv-dia-nemo`, vía WSL2 si el host es Windows). |
 | `rediarize.py` | Re-diariza un `.json` existente sin re-transcribir (`--rediarize`). |
-| `ffmpeg.exe` / `ffprobe.exe` | Decodificación de audio. |
-| `venv/` | Entorno Python 3.11 con las dependencias. |
-| `benchmarks.jsonl` | Generado solo con `--bench-report true` (ver [Benchmark de diarizadores](#benchmark-de-diarizadores)). |
+| `data/heavy_requirements.txt` | Stack pesado pineado (lo instala `transcribe --start`). |
+
+### Carpeta de datos del usuario
+
+El código vive en el venv de pipx (solo lectura); los **datos de runtime** van en la
+carpeta de datos del usuario (`%LOCALAPPDATA%\transcribe-wpr\` en Windows): los venvs
+de diarizadores, `ffmpeg`/`ffprobe`, el token (`hf_token.txt`), el estado global
+(`last_status.json`) y `benchmarks.jsonl` (este último solo con `--bench-report true`).
+Para **desinstalar del todo**: `pipx uninstall transcribe-tool-wpr` y borrar esa carpeta.
 
 ---
 
