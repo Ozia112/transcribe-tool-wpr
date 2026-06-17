@@ -196,20 +196,76 @@ def cmd_setup_diarizer(name: str) -> int:
 
 def _setup_community1() -> int:
     venv = paths.VENV_COMMUNITY1
-    pip = venv / "Scripts" / "pip.exe"
-    if not pip.exists():
-        pip = venv / "bin" / "pip"
     print(f"Creando venv aislado para community-1 en:\n  {venv}")
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=False)
+
+    # El ejecutable de Python del venv recien creado (Windows vs POSIX).
+    py = venv / "Scripts" / "python.exe"
+    if not py.exists():
+        py = venv / "bin" / "python"
+    if not py.exists():
+        print(f"ERROR: no se encontro el Python del venv en {py}\n"
+              "       ¿Fallo la creacion del venv? Revisa los mensajes anteriores.")
+        return 1
+    pip = [str(py), "-m", "pip"]
+
+    print("Actualizando pip...")
+    subprocess.run(pip + ["install", "--upgrade", "pip"], check=False)
     print("Instalando pyannote.audio 4.0.4...")
-    subprocess.run([str(pip), "install", "pyannote.audio==4.0.4"], check=False)
+    subprocess.run(pip + ["install", "pyannote.audio==4.0.4"], check=False)
     print("Forzando torch CUDA (cu126)...")
-    subprocess.run([str(pip), "install", "torch==2.11.0+cu126", "torchaudio==2.11.0+cu126",
-                    "--index-url", "https://download.pytorch.org/whl/cu126"], check=False)
+    subprocess.run(pip + ["install", "torch==2.11.0+cu126", "torchaudio==2.11.0+cu126",
+                          "--index-url", "https://download.pytorch.org/whl/cu126"], check=False)
     print("Instalando soundfile...")
-    subprocess.run([str(pip), "install", "soundfile"], check=False)
-    print("\nListo. Acepta los terminos del modelo en:")
-    print("  https://huggingface.co/pyannote/speaker-diarization-community-1")
+    subprocess.run(pip + ["install", "soundfile"], check=False)
+    print("\nVenv listo. Verificando acceso al modelo en HuggingFace...")
+    _check_community1_access()
+    return 0
+
+
+def _check_community1_access() -> int:
+    """Verifica, via API de HuggingFace, si el token ya tiene acceso al modelo
+    'gated' community-1. Devuelve 0 si todo esta listo, 1 si falta algo.
+
+    Nota: aceptar los terminos de un modelo gated SOLO se puede hacer desde el
+    navegador (formulario 'Agree'); HuggingFace no expone una API publica para
+    aceptarlos por terminal. Lo mejor que se puede automatizar es comprobar si
+    ya estan aceptados y, si no, dar el enlace exacto.
+    """
+    repo_id = "pyannote/speaker-diarization-community-1"
+    url = f"https://huggingface.co/{repo_id}"
+    token = os.environ.get("HF_TOKEN")
+
+    if not token:
+        print("\n[!] No hay token de HuggingFace configurado.")
+        print("    1) Crea uno (tipo 'read') en https://huggingface.co/settings/tokens")
+        print("    2) Guardalo con:  transcribe --setup-token")
+        print(f"    3) Acepta los terminos del modelo en:\n       {url}")
+        return 1
+
+    try:
+        from huggingface_hub import auth_check
+        auth_check(repo_id, token=token)
+    except ImportError:
+        print(f"\n[!] No se pudo importar huggingface_hub para verificar el acceso.")
+        print(f"    Si aun no lo hiciste, acepta los terminos en:\n       {url}")
+        return 1
+    except Exception as e:  # noqa: BLE001
+        name = type(e).__name__
+        if name == "GatedRepoError":
+            print("\n[!] Tu token es valido, pero FALTA aceptar los terminos del modelo.")
+            print("    Debes aceptarlos desde el navegador (no hay API para hacerlo por")
+            print("    terminal). Abre el enlace, inicia sesion y pulsa 'Agree':")
+            print(f"       {url}")
+        elif name == "RepositoryNotFoundError":
+            print("\n[!] No se pudo acceder al repositorio. ¿El token es valido y de la")
+            print(f"    cuenta correcta? Modelo:\n       {url}")
+        else:
+            print(f"\n[!] No se pudo verificar el acceso automaticamente ({name}).")
+            print(f"    Si aun no lo hiciste, acepta los terminos en:\n       {url}")
+        return 1
+
+    print("\n[OK] Tu token ya tiene acceso al modelo: todo esta listo.")
     print("Uso: transcribe \"audio.wav\" 4-8 es pyannote-community-1")
     return 0
 

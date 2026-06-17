@@ -298,6 +298,23 @@ transcribe "audio.wav" 4-8 es pyannote-3.1 --batch 4 --beam 10
 Además, el pipeline **libera la VRAM entre etapas** (transcripción → alineación →
 diarización) y la **diarización cae a CPU** automáticamente si no entra en la GPU.
 
+### Valores óptimos por GPU (máximos que caben)
+
+Estos son los **máximos medidos** que entran en VRAM sin provocar OOM; subirlos por
+encima solo dispara el fallback (más reintentos, sin ganancia). **Son también los
+defaults**, así que en una 4 GB no necesitas pasar ningún flag:
+
+| GPU / VRAM | `--batch` (transcripción) | `--beam` (transcripción) | `--diar-batch` (diarización) |
+| --- | --- | --- | --- |
+| **RTX 3050 Laptop 4 GB** *(probado)* | **4** (con 5 hace OOM) | **10** (piso 5) | **64** (baja 64→32→16→8→4→CPU) |
+| 6–8 GB *(estimado, no probado)* | 8–12 | 10 | 64–128 |
+| ≥12 GB *(estimado, no probado)* | 16–32 | 10 | 128+ |
+
+> En 4 GB el cuello de botella es la **transcripción** (`--batch`), no la diarización:
+> `batch 4 / beam 10` usa ~2.6 GB y `--diar-batch 64` cabe holgado. El `--beam` apenas
+> cuesta VRAM, por eso 10 es seguro; bájalo solo si buscas más velocidad. Para mapear
+> otras GPUs usa `--bench-report true` (ver [Benchmark](#benchmark-de-diarizadores)).
+
 ### Capacidad y rendimiento (medido en RTX 3050 4 GB)
 
 | Métrica | Valor |
@@ -363,6 +380,11 @@ transcribe --list-diarizers
   con el pin de WhisperX `<4.0`/cu121, por eso corre como subproceso aislado). Requiere
   aceptar los términos del modelo en
   [huggingface.co/pyannote/speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1).
+  Al terminar `--setup-diarizer pyannote-community-1`, el instalador **verifica por la API
+  de HuggingFace** si tu token ya tiene acceso: si lo tiene, confirma que está todo listo;
+  si faltan los términos, te da el enlace exacto para aceptarlos. *(Aceptar los términos de
+  un modelo "gated" solo puede hacerse desde el navegador; HuggingFace no expone una API
+  para aceptarlos por terminal.)*
 
 ### `nemo` (NVIDIA NeMo Sortformer streaming)
 
@@ -495,6 +517,7 @@ audio ni transcripciones.
 | pyannote.audio | 3.4.0 (diarización) |
 | speechbrain | 1.0.3 (la 1.1.0 rompe por un import de `k2` en Windows) |
 | cuDNN / cuBLAS | cuDNN 8 (`nvidia-cudnn-cu12==8.9.7.29`) — requerido por CTranslate2 |
+| setuptools | `>=70` — provee `pkg_resources`, que CTranslate2 importa y los venvs nuevos ya no traen |
 | ffmpeg | `ffmpeg`/`ffprobe`, los descarga `transcribe --start` (no van en el repo) |
 
 > Las versiones exactas del stack pesado están fijadas en
@@ -527,7 +550,26 @@ El código vive en el venv de pipx (solo lectura); los **datos de runtime** van 
 carpeta de datos del usuario (`%LOCALAPPDATA%\transcribe-wpr\` en Windows): los venvs
 de diarizadores, `ffmpeg`/`ffprobe`, el token (`hf_token.txt`), el estado global
 (`last_status.json`) y `benchmarks.jsonl` (este último solo con `--bench-report true`).
-Para **desinstalar del todo**: `pipx uninstall transcribe-tool-wpr` y borrar esa carpeta.
+
+Para **desinstalar del todo** (sin dejar token, PATH ni modelos):
+
+```powershell
+# 1) Quitar el CLI (también su transcribe.exe del PATH de pipx)
+pipx uninstall transcribe-tool-wpr
+# 2) Borrar la carpeta de datos (token, ffmpeg, venvs de diarizadores, estado)
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\transcribe-wpr"
+# 3) Quitar la variable de entorno persistente del token (la deja `--setup-token` vía setx)
+[Environment]::SetEnvironmentVariable("HF_TOKEN", $null, "User")
+# 4) (Opcional) Borrar los modelos de diarización cacheados (NO toca el de Whisper)
+Remove-Item -Recurse -Force "$env:USERPROFILE\.cache\torch\pyannote"
+Remove-Item -Recurse -Force "$env:USERPROFILE\.cache\huggingface\hub\models--pyannote--*"
+```
+
+> Los pesos de los modelos de diarización (pyannote/segmentation/wespeaker/community-1)
+> se cachean en `~/.cache/torch/pyannote` y `~/.cache/huggingface/hub`, **fuera** de la
+> carpeta de datos; el paso 4 los elimina. El modelo de Whisper
+> (`models--Systran--faster-whisper-large-v3`) y el de alineación se conservan salvo que
+> también los borres a mano.
 
 ---
 

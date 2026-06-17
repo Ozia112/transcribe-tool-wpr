@@ -306,10 +306,15 @@ def main(argv=None) -> int:
     p.add_argument("lang", nargs="?", default="es")
     p.add_argument("diarizer", nargs="?", default="")
     p.add_argument("--output", required=True, help="carpeta de salida")
-    p.add_argument("--batch", type=int, default=None, help="batch_size de transcripcion")
-    p.add_argument("--beam", type=int, default=None, help="beam_size de transcripcion")
+    p.add_argument("--batch", type=int, default=None,
+                   help=f"batch_size de transcripcion (def {START_BATCH}; sin limite "
+                        "duro: si no cabe en VRAM baja solo de 1 en 1 hasta 1)")
+    p.add_argument("--beam", type=int, default=None,
+                   help=f"beam_size de transcripcion (def {START_BEAM}; sin limite duro: "
+                        f"si hace OOM baja de 2 en 2 hasta el piso {MIN_BEAM})")
     p.add_argument("--diar-batch", dest="diar_batch", type=int, default=None,
-                   help="batch de diarizacion (independiente; def 32, baja solo)")
+                   help="batch de diarizacion (independiente; def por modelo 64, "
+                        "baja solo 64->32->16->8->4->CPU)")
     p.add_argument("--bench-report", dest="bench_report", default="false",
                    help="true/false: agrega una linea a benchmarks.jsonl con "
                         "GPU/VRAM/tiempo de la diarizacion (def false, no escribe nada)")
