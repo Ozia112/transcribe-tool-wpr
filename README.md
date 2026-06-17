@@ -104,7 +104,7 @@ en el mismo entorno aislado.
 aparte; ver [Información técnica](#información-técnica)).
 
 > **Alternativa sin PyPI (bleeding-edge):**
-> `pipx install --python python3.11 "git+https://github.com/<OWNER>/transcribe-tool-wpr.git"`,
+> `pipx install --python python3.11 "git+https://github.com/Ozia112/transcribe-tool-wpr.git"`,
 > luego `transcribe --start` igual. Para actualizar, reinstala apuntando al nuevo tag.
 
 ### Token de HuggingFace

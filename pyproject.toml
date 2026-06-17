@@ -32,10 +32,9 @@ dependencies = ["platformdirs>=4"]
 transcribe = "transcribe_wpr.cli:main"
 
 [project.urls]
-# TODO: reemplazar <OWNER> por tu usuario/organizacion de GitHub antes de publicar.
-Homepage = "https://github.com/<OWNER>/transcribe-tool-wpr"
-Repository = "https://github.com/<OWNER>/transcribe-tool-wpr"
-Issues = "https://github.com/<OWNER>/transcribe-tool-wpr/issues"
+Homepage = "https://github.com/Ozia112/transcribe-tool-wpr"
+Repository = "https://github.com/Ozia112/transcribe-tool-wpr"
+Issues = "https://github.com/Ozia112/transcribe-tool-wpr/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/transcribe_wpr"]
