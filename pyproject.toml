@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "transcribe-tool-wpr"
-version = "1.0.0b4"
+version = "1.0.0b5"
 description = "Transcripcion en espanol con diarizacion seleccionable (WhisperX + pyannote/NeMo), afinada para GPUs NVIDIA de 4 GB."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"

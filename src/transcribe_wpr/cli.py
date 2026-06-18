@@ -89,6 +89,36 @@ def _ensure_pkg_resources() -> None:
     importlib.invalidate_caches()
 
 
+def _persist_lightning_checkpoint() -> None:
+    """Persiste de una vez el upgrade del checkpoint VAD de whisperx (Lightning
+    v1.5.4 -> version actual) para que deje de avisarlo en CADA corrida. Sin esto
+    Lightning lo reconvierte en memoria cada vez y emite el aviso.
+
+    Idempotente: guarda un marcador firmado por mtime/size del asset; si whisperx
+    se reinstala (el asset vuelve al viejo), la firma cambia y se reaplica solo.
+    Mejor esfuerzo: nunca rompe el flujo de transcripcion."""
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("whisperx")
+        if not spec or not spec.origin:
+            return
+        asset = Path(spec.origin).parent / "assets" / "pytorch_model.bin"
+        if not asset.exists():
+            return
+        st = asset.stat()
+        sig = f"{st.st_mtime_ns}:{st.st_size}"
+        marker = paths.DATA_DIR / ".lightning_ckpt_upgraded"
+        if marker.exists() and marker.read_text(encoding="utf-8").strip() == sig:
+            return
+        subprocess.run([sys.executable, "-m",
+                        "pytorch_lightning.utilities.upgrade_checkpoint", str(asset)],
+                       check=False, capture_output=True)
+        st = asset.stat()  # el upgrade reescribe el archivo: re-firmamos
+        marker.write_text(f"{st.st_mtime_ns}:{st.st_size}", encoding="utf-8")
+    except Exception:  # noqa: BLE001 - persistir es mejor-esfuerzo, no debe romper nada
+        pass
+
+
 def _setup_done() -> bool:
     return paths.READY_MARKER.exists()
 
@@ -373,6 +403,7 @@ def main(argv=None) -> int:
     _require_setup()
     _setup_runtime_path()
     _ensure_pkg_resources()
+    _persist_lightning_checkpoint()
     from transcribe_wpr import run
     return run.main(args + ["--output", os.getcwd()])
 

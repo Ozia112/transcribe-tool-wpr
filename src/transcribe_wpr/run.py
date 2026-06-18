@@ -27,6 +27,26 @@ from pathlib import Path
 
 from transcribe_wpr import paths
 
+
+def _quiet_known_warnings() -> None:
+    """Silencia SOLO mensajes conocidos e inofensivos del stack. Son filtros por
+    MENSAJE exacto (no por categoria global), asi que:
+      - NO ocultan errores: las excepciones no pasan por el modulo `warnings`.
+      - NO ocultan avisos futuros reales: cualquier warning con otro texto sigue
+        mostrandose.
+    Debe ejecutarse antes de importar whisperx, porque el de pkg_resources se
+    emite al importar ctranslate2."""
+    import warnings
+    for msg in (
+        r"pkg_resources is deprecated as an API",                  # ctranslate2 -> pkg_resources
+        r"You are using `torch\.load` with `weights_only=False`",  # lightning_fabric / torch.load
+        r"Module 'speechbrain\.pretrained' was deprecated",        # speechbrain 1.0 (lo usa pyannote 3.4)
+    ):
+        warnings.filterwarnings("ignore", message=msg)
+
+
+_quiet_known_warnings()
+
 GLOBAL_STATUS = paths.GLOBAL_STATUS
 BENCH_FILE = paths.BENCH_FILE
 
