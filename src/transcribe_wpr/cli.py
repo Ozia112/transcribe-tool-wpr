@@ -67,6 +67,28 @@ def _setup_runtime_path() -> None:
         os.environ["PATH"] = os.pathsep.join(parts + [os.environ.get("PATH", "")])
 
 
+def _ensure_pkg_resources() -> None:
+    """Auto-reparacion: ctranslate2 (motor de faster-whisper) hace
+    `import pkg_resources`, que vive en setuptools. setuptools >= 81 ELIMINO
+    pkg_resources, asi que un venv con setuptools nuevo rompe al cargar whisperx
+    con 'ModuleNotFoundError: No module named pkg_resources'.
+
+    Si falta, reinstalamos una setuptools que aun lo traiga (<81). Solo actua
+    cuando falta (tras la primera vez ya esta presente); no requiere re-correr
+    `transcribe --start`, basta `pipx upgrade`."""
+    try:
+        import pkg_resources  # noqa: F401
+        return
+    except Exception:  # noqa: BLE001
+        pass
+    print("Reparando dependencia: instalando 'setuptools<81' (provee pkg_resources, "
+          "que ctranslate2 necesita y setuptools>=81 elimino)...", flush=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "setuptools<81"],
+                   check=False)
+    import importlib
+    importlib.invalidate_caches()
+
+
 def _setup_done() -> bool:
     return paths.READY_MARKER.exists()
 
@@ -335,6 +357,7 @@ def main(argv=None) -> int:
     if cmd == "--rediarize":
         _require_setup()
         _setup_runtime_path()
+        _ensure_pkg_resources()
         from transcribe_wpr import rediarize
         return rediarize.main(rest + ["--output", os.getcwd()])
 
@@ -349,6 +372,7 @@ def main(argv=None) -> int:
         return 1
     _require_setup()
     _setup_runtime_path()
+    _ensure_pkg_resources()
     from transcribe_wpr import run
     return run.main(args + ["--output", os.getcwd()])
 

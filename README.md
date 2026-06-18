@@ -517,7 +517,7 @@ audio ni transcripciones.
 | pyannote.audio | 3.4.0 (diarización) |
 | speechbrain | 1.0.3 (la 1.1.0 rompe por un import de `k2` en Windows) |
 | cuDNN / cuBLAS | cuDNN 8 (`nvidia-cudnn-cu12==8.9.7.29`) — requerido por CTranslate2 |
-| setuptools | `>=70` — provee `pkg_resources`, que CTranslate2 importa y los venvs nuevos ya no traen |
+| setuptools | `>=70,<81` — provee `pkg_resources` (lo importa CTranslate2); setuptools `>=81` lo eliminó |
 | ffmpeg | `ffmpeg`/`ffprobe`, los descarga `transcribe --start` (no van en el repo) |
 
 > Las versiones exactas del stack pesado están fijadas en
