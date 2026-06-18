@@ -41,8 +41,33 @@ def _quiet_known_warnings() -> None:
         r"pkg_resources is deprecated as an API",                  # ctranslate2 -> pkg_resources
         r"You are using `torch\.load` with `weights_only=False`",  # lightning_fabric / torch.load
         r"Module 'speechbrain\.pretrained' was deprecated",        # speechbrain 1.0 (lo usa pyannote 3.4)
+        r"TensorFloat-32 \(TF32\) has been disabled",              # pyannote ReproducibilityWarning (#6)
     ):
         warnings.filterwarnings("ignore", message=msg)
+
+
+def _silence_pyannote_version_prints() -> None:
+    """El aviso 'Model was trained with ... Bad things might happen' de pyannote
+    NO se emite por el modulo `warnings` sino con print() (ver
+    pyannote/audio/utils/version.py), asi que filterwarnings no lo toca. Lo
+    anulamos sustituyendo check_version por un no-op en los DOS modulos que lo
+    importan por nombre (core.model y core.pipeline). Es puramente cosmetico: el
+    '0.0.1' es un placeholder de los metadatos del checkpoint y el modelo corre
+    bien. Mejor esfuerzo: si pyannote cambia de estructura, no rompe nada.
+
+    Debe llamarse despues de importar whisperx (que arrastra pyannote)."""
+    import importlib
+
+    def _noop(*_args, **_kwargs):
+        return None
+
+    for modname in ("pyannote.audio.core.model", "pyannote.audio.core.pipeline"):
+        try:
+            mod = importlib.import_module(modname)
+            if hasattr(mod, "check_version"):
+                mod.check_version = _noop
+        except Exception:  # noqa: BLE001 - cosmetico, nunca debe romper el pipeline
+            pass
 
 
 _quiet_known_warnings()
@@ -398,6 +423,8 @@ def main(argv=None) -> int:
     import whisperx
     from whisperx.diarize import assign_word_speakers
     from whisperx.utils import get_writer
+
+    _silence_pyannote_version_prints()  # #5: anula el print de version de pyannote
 
     sys.stdout = ProgressTee(sys.__stdout__)
 
